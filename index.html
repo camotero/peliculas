@@ -171,6 +171,7 @@ circle.dot:hover {
 .tooltip {
   position: absolute;
   pointer-events: none;
+  touch-action: manipulation;
   background: var(--parchment);
   border: 1.5px solid var(--parchment-deep);
   border-radius: 4px;
@@ -184,7 +185,7 @@ circle.dot:hover {
   z-index: 100;
 }
 
-.tooltip.visible { opacity: 1; }
+.tooltip.visible { opacity: 1; pointer-events: auto; }
 
 .tooltip .tt-title {
   font-size: 1.1rem;
@@ -216,6 +217,14 @@ circle.dot:hover {
   color: var(--ink-light);
   border-top: 1px solid var(--grid-line);
   padding-top: 0.4rem;
+}
+
+.tooltip .tt-stack-item:hover {
+  background: rgba(184,150,12,0.12);
+}
+
+.tooltip .tt-stack-item:last-child {
+  border-bottom: none;
 }
 
 /* Legend */
@@ -532,19 +541,51 @@ function drawChart() {
 
   svg.innerHTML = html;
 
+  // Build coordinate map for stacked points
+  const coordMap = {};
+  DATA.forEach((d, i) => {
+    const key = `${d.x},${d.y}`;
+    if (!coordMap[key]) coordMap[key] = [];
+    coordMap[key].push(i);
+  });
+
   // Attach events to dots
   svg.querySelectorAll('circle.dot').forEach(el => {
     el.addEventListener('mouseenter', e => showTooltip(e, +el.dataset.idx));
     el.addEventListener('mouseleave', hideTooltip);
-    el.addEventListener('click', () => scrollToRow(+el.dataset.idx));
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleDotClick(e, +el.dataset.idx);
+    });
+    // Touch support for mobile
+    el.addEventListener('touchstart', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleDotClick(e, +el.dataset.idx);
+    }, { passive: false });
   });
+
+  window.coordMap = coordMap;
 }
 
 drawChart();
 window.addEventListener('resize', () => { drawChart(); applySearch(); });
 
+// Close tooltip on tap outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.tooltip') && !e.target.closest('circle.dot')) {
+    hideTooltip();
+  }
+});
+document.addEventListener('touchstart', e => {
+  if (!e.target.closest('.tooltip') && !e.target.closest('circle.dot')) {
+    hideTooltip();
+  }
+});
+
 // ---- TOOLTIP ----
-function showTooltip(e, idx) {
+function showFullTooltip(idx, anchorEl) {
   const d = DATA[idx];
   tooltip.innerHTML = `
     <div class="tt-title">${d.titulo}</div>
@@ -554,15 +595,88 @@ function showTooltip(e, idx) {
     <div class="tt-note">${d.nota}</div>
   `;
   tooltip.classList.add('visible');
+  positionTooltip(anchorEl);
+}
 
+function showStackedTooltip(indices, anchorEl) {
+  const items = indices.map(i => {
+    const d = DATA[i];
+    const color = getColor(d.año);
+    return `<div class="tt-stack-item" data-idx="${i}" style="cursor:pointer;padding:0.35rem 0.2rem;border-bottom:1px solid rgba(58,46,30,0.1);">
+      <span class="decade-badge" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:0.4rem;vertical-align:middle;border:1px solid rgba(58,46,30,0.2);"></span>
+      <strong>${d.titulo}</strong> <span style="color:var(--ink-faint);">(${d.año})</span>
+    </div>`;
+  }).join('');
+  
+  const d0 = DATA[indices[0]];
+  tooltip.innerHTML = `
+    <div style="font-size:0.85rem;color:var(--ink-faint);margin-bottom:0.3rem;font-style:italic;">${indices.length} películas en X:${d0.x > 0 ? '+' : ''}${d0.x}, Y:${d0.y}</div>
+    ${items}
+  `;
+  tooltip.classList.add('visible');
+  positionTooltip(anchorEl);
+
+  // Attach click handlers to stacked items
+  tooltip.querySelectorAll('.tt-stack-item').forEach(item => {
+    item.addEventListener('click', e => {
+      e.stopPropagation();
+      const targetIdx = +item.dataset.idx;
+      const dot = svg.querySelector(`circle.dot[data-idx="${targetIdx}"]`);
+      showFullTooltip(targetIdx, dot || anchorEl);
+    });
+    item.addEventListener('touchstart', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const targetIdx = +item.dataset.idx;
+      const dot = svg.querySelector(`circle.dot[data-idx="${targetIdx}"]`);
+      showFullTooltip(targetIdx, dot || anchorEl);
+    }, { passive: false });
+  });
+}
+
+function handleDotClick(e, idx) {
+  const d = DATA[idx];
+  const key = `${d.x},${d.y}`;
+  const stacked = window.coordMap[key];
+  const anchorEl = e.target;
+
+  if (stacked && stacked.length > 1) {
+    showStackedTooltip(stacked, anchorEl);
+  } else {
+    showFullTooltip(idx, anchorEl);
+  }
+}
+
+function showTooltip(e, idx) {
+  // Desktop hover — always show full tooltip for single point
+  const d = DATA[idx];
+  const key = `${d.x},${d.y}`;
+  const stacked = window.coordMap[key];
+  
+  if (stacked && stacked.length > 1) {
+    showStackedTooltip(stacked, e.target);
+  } else {
+    showFullTooltip(idx, e.target);
+  }
+}
+
+function positionTooltip(anchorEl) {
   const rect = container.getBoundingClientRect();
-  const dot = e.target.getBoundingClientRect();
+  const dot = anchorEl.getBoundingClientRect();
   let left = dot.left - rect.left + 12;
   let top = dot.top - rect.top - 10;
 
-  if (left + 350 > rect.width) left = dot.left - rect.left - 360;
-  if (top + 200 > rect.height) top = rect.height - 210;
-  if (top < 0) top = 10;
+  // On mobile, prefer centering tooltip
+  const isMobile = window.innerWidth < 700;
+  if (isMobile) {
+    left = Math.max(10, (rect.width - Math.min(320, rect.width - 20)) / 2);
+    top = dot.top - rect.top - tooltip.offsetHeight - 15;
+    if (top < 5) top = dot.top - rect.top + 20;
+  } else {
+    if (left + 350 > rect.width) left = dot.left - rect.left - 360;
+    if (top + 200 > rect.height) top = rect.height - 210;
+    if (top < 0) top = 10;
+  }
 
   tooltip.style.left = left + 'px';
   tooltip.style.top = top + 'px';
@@ -603,11 +717,6 @@ function highlightDot(idx, on) {
     if (on) { dot.setAttribute('r', '7'); dot.style.strokeWidth = '2.5'; dot.style.filter = 'drop-shadow(0 0 6px rgba(184,150,12,0.5))'; }
     else { dot.setAttribute('r', '5'); dot.style.strokeWidth = '1.5'; dot.style.filter = ''; }
   }
-}
-
-function scrollToRow(idx) {
-  const row = tbody.querySelector(`tr[data-idx="${idx}"]`);
-  if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 renderTable();
