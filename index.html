@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Espectro Cinematográfico Católico</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
+
+:root {
+  --parchment: #f4ecd8;
+  --parchment-dark: #e8dcc4;
+  --parchment-deep: #d4c5a0;
+  --ink: #3a2e1e;
+  --ink-light: #6b5b47;
+  --ink-faint: #9a8b74;
+  --sepia-accent: #8b6914;
+  --red-accent: #8b2500;
+  --gold: #b8960c;
+  --grid-line: rgba(58,46,30,0.12);
+  --grid-line-major: rgba(58,46,30,0.25);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  background: var(--parchment);
+  color: var(--ink);
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(139,105,20,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(139,37,0,0.04) 0%, transparent 50%);
+}
+
+header {
+  text-align: center;
+  padding: 2.5rem 1rem 1rem;
+  border-bottom: 1px solid var(--parchment-deep);
+}
+
+header h1 {
+  font-size: 2.4rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  margin-bottom: 0.3rem;
+}
+
+header .subtitle {
+  font-size: 1.1rem;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--ink-light);
+  letter-spacing: 0.02em;
+}
+
+.stats-bar {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  padding: 0.8rem 1rem;
+  font-size: 0.95rem;
+  color: var(--ink-faint);
+  border-bottom: 1px solid var(--grid-line);
+}
+
+.stats-bar span { font-variant-numeric: tabular-nums; }
+.stats-bar strong { color: var(--ink-light); font-weight: 600; }
+
+.search-container {
+  display: flex;
+  justify-content: center;
+  padding: 1.2rem 1rem 0.8rem;
+}
+
+#searchInput {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.15rem;
+  padding: 0.6rem 1.2rem;
+  width: min(500px, 90vw);
+  border: 1.5px solid var(--parchment-deep);
+  border-radius: 3px;
+  background: rgba(255,255,255,0.5);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+#searchInput:focus {
+  border-color: var(--sepia-accent);
+}
+
+#searchInput::placeholder {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+.search-count {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--ink-faint);
+  padding: 0.2rem 0 0.6rem;
+  min-height: 1.6rem;
+}
+
+/* ---- CHART ---- */
+.chart-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 0 1rem 1.5rem;
+}
+
+.chart-container {
+  position: relative;
+  width: min(900px, 95vw);
+  aspect-ratio: 1.5 / 1;
+}
+
+svg.chart {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.axis-label {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  fill: var(--ink-light);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.axis-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  fill: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.grid-line { stroke: var(--grid-line); stroke-width: 0.5; }
+.grid-line-major { stroke: var(--grid-line-major); stroke-width: 1; }
+
+.zone-label {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  fill: rgba(58,46,30,0.10);
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 500;
+}
+
+circle.dot {
+  stroke-width: 1.5;
+  cursor: pointer;
+  transition: opacity 0.3s, r 0.2s;
+}
+
+circle.dot.dimmed { opacity: 0.1; }
+circle.dot.highlighted {
+  stroke: var(--ink) !important;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px rgba(184,150,12,0.5));
+}
+
+circle.dot:hover {
+  r: 7;
+  stroke-width: 2.5;
+}
+
+/* Tooltip */
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--parchment);
+  border: 1.5px solid var(--parchment-deep);
+  border-radius: 4px;
+  padding: 0.8rem 1rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  max-width: 350px;
+  box-shadow: 0 4px 16px rgba(58,46,30,0.15);
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 100;
+}
+
+.tooltip.visible { opacity: 1; }
+
+.tooltip .tt-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 0.2rem;
+}
+
+.tooltip .tt-meta {
+  color: var(--ink-light);
+  font-style: italic;
+  margin-bottom: 0.4rem;
+}
+
+.tooltip .tt-coords {
+  font-variant-numeric: tabular-nums;
+  color: var(--sepia-accent);
+  font-weight: 600;
+}
+
+.tooltip .tt-genre {
+  color: var(--ink-light);
+  font-size: 0.88rem;
+}
+
+.tooltip .tt-note {
+  margin-top: 0.4rem;
+  font-size: 0.86rem;
+  color: var(--ink-light);
+  border-top: 1px solid var(--grid-line);
+  padding-top: 0.4rem;
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1rem 1.8rem;
+  padding: 0.5rem 1rem 1.5rem;
+  font-size: 0.9rem;
+  color: var(--ink-light);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(58,46,30,0.3);
+}
+
+/* ---- TABLE ---- */
+.table-container {
+  padding: 0 1rem 3rem;
+  display: flex;
+  justify-content: center;
+}
+
+table {
+  border-collapse: collapse;
+  width: min(1100px, 98vw);
+  font-size: 0.92rem;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--parchment-dark);
+  border-bottom: 2px solid var(--parchment-deep);
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-light);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+thead th:hover { color: var(--ink); }
+thead th.sorted-asc::after { content: ' ▲'; font-size: 0.7rem; }
+thead th.sorted-desc::after { content: ' ▼'; font-size: 0.7rem; }
+
+tbody tr {
+  border-bottom: 1px solid var(--grid-line);
+  transition: opacity 0.3s, background 0.2s;
+  cursor: pointer;
+}
+
+tbody tr:hover { background: rgba(184,150,12,0.08); }
+tbody tr.dimmed { opacity: 0.15; }
+tbody tr.highlighted {
+  background: rgba(184,150,12,0.15);
+  font-weight: 500;
+}
+
+td {
+  padding: 0.5rem 0.8rem;
+  vertical-align: top;
+}
+
+td.num {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+td.nota-cell {
+  font-size: 0.84rem;
+  color: var(--ink-light);
+  max-width: 350px;
+}
+
+.decade-badge {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+  border: 1px solid rgba(58,46,30,0.2);
+}
+
+footer {
+  text-align: center;
+  padding: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+  border-top: 1px solid var(--grid-line);
+  font-style: italic;
+}
+
+@media (max-width: 700px) {
+  header h1 { font-size: 1.6rem; }
+  .stats-bar { flex-direction: column; gap: 0.3rem; align-items: center; }
+  td.nota-cell { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Espectro Cinematográfico Católico</h1>
+  <p class="subtitle">Clasificación doctrinal y pastoral del cine</p>
+</header>
+<div class="stats-bar" id="statsBar"></div>
+
+<div class="search-container">
+  <input type="text" id="searchInput" placeholder="Buscar por título, director, género o nota…">
+</div>
+<div class="search-count" id="searchCount"></div>
+
+<div class="chart-wrapper">
+  <div class="chart-container">
+    <svg class="chart" id="chart"></svg>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<div class="table-container">
+  <table>
+    <thead>
+      <tr>
+        <th data-col="titulo">Título</th>
+        <th data-col="director">Director</th>
+        <th data-col="año">Año</th>
+        <th data-col="x_ortodoxia">X</th>
+        <th data-col="y_acompanamiento">Y</th>
+        <th data-col="genero">Género</th>
+        <th data-col="nota">Nota</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<footer>
+  Espectro Cinematográfico Católico · Eje X: Ortodoxia doctrinal (-10 a +10) · Eje Y: Necesidad de acompañamiento (0 a 10)
+</footer>
+
+<script>
+// ---- DATA ----
+const DATA = [
+{"titulo":"El mago de Oz","titulo_original":"The Wizard of Oz","director":"Victor Fleming","año":1939,"x":0,"y":1,"genero":"musical-fantasía","nota":"Fantasía inocua. Teosofía de Baum no permea la película. Moral de hogar y amistad. Código Hays."},
+{"titulo":"Cantando bajo la lluvia","titulo_original":"Singin' in the Rain","director":"Stanley Donen, Gene Kelly","año":1952,"x":1,"y":0,"genero":"musical-comedia","nota":"Entretenimiento puro, limpio, sin contenido problemático. Alegría y profesionalismo."},
+{"titulo":"El sonido de la música","titulo_original":"The Sound of Music","director":"Robert Wise","año":1965,"x":7,"y":1,"genero":"musical-drama","nota":"Familia Von Trapp. Vocación religiosa, vida consagrada presentada positivamente, resistencia al nazismo. Católicamente explícita."},
+{"titulo":"Mary Poppins","titulo_original":"Mary Poppins","director":"Robert Stevenson","año":1964,"x":2,"y":0,"genero":"musical-fantasía","nota":"Magia benigna al servicio de la familia. Valores de orden, alegría, imaginación. Sin contenido problemático."},
+{"titulo":"Mi vecino Totoro","titulo_original":"My Neighbor Totoro","director":"Hayao Miyazaki","año":1988,"x":2,"y":0,"genero":"animación","nota":"Ley natural pura: inocencia, familia, naturaleza. Sin conflicto moral. Ideal desde los 3 años."},
+{"titulo":"El viaje de Chihiro","titulo_original":"Spirited Away","director":"Hayao Miyazaki","año":2001,"x":2,"y":2,"genero":"animación","nota":"Valentía, generosidad, trabajo. Cosmología sintoísta requiere contexto mínimo. Algunas escenas pueden asustar a pequeños."},
+{"titulo":"Toy Story","titulo_original":"Toy Story","director":"John Lasseter","año":1995,"x":1,"y":0,"genero":"animación","nota":"Amistad, lealtad, identidad. Pixar limpia. Sin contenido problemático."},
+{"titulo":"Toy Story 2","titulo_original":"Toy Story 2","director":"John Lasseter","año":1999,"x":1,"y":0,"genero":"animación","nota":"Pertenencia, identidad, lealtad. Continuación coherente. Limpia."},
+{"titulo":"Toy Story 3","titulo_original":"Toy Story 3","director":"Lee Unkrich","año":2010,"x":1,"y":1,"genero":"animación","nota":"Despedida de la infancia, sacrificio. Escena del incinerador puede impactar a pequeños. Emotiva."},
+{"titulo":"Toy Story 4","titulo_original":"Toy Story 4","director":"Josh Cooley","año":2019,"x":0,"y":2,"genero":"animación","nota":"Autoconcepto y propósito. Woody abandona a sus dueños — mensaje de autorrealización individual problemático vs. lealtad de las anteriores."},
+{"titulo":"Buscando a Nemo","titulo_original":"Finding Nemo","director":"Andrew Stanton","año":2003,"x":2,"y":0,"genero":"animación","nota":"Amor paternal, obediencia, amistad. Ley natural clara. Pérdida maternal al inicio puede requerir conversación con muy pequeños."},
+{"titulo":"Buscando a Dory","titulo_original":"Finding Dory","director":"Andrew Stanton","año":2016,"x":1,"y":0,"genero":"animación","nota":"Familia, discapacidad tratada con ternura. Secuela competente, limpia."},
+{"titulo":"Intensamente","titulo_original":"Inside Out","director":"Pete Docter","año":2015,"x":1,"y":1,"genero":"animación","nota":"Vida emocional, aceptación de la tristeza. Inteligente. Niños muy pequeños pueden confundirse con la abstracción."},
+{"titulo":"Intensamente 2","titulo_original":"Inside Out 2","director":"Kelsey Mann","año":2024,"x":0,"y":2,"genero":"animación","nota":"Ansiedad adolescente. Emocionalmente competente pero marco exclusivamente psicologista — sin referencia a virtud, gracia o formación moral."},
+{"titulo":"Coco","titulo_original":"Coco","director":"Lee Unkrich","año":2017,"x":1,"y":2,"genero":"animación","nota":"Familia, memoria, tradición. Día de Muertos: cosmología de los muertos requiere contexto católico (purgatorio ≠ tierra de los muertos)."},
+{"titulo":"Up","titulo_original":"Up","director":"Pete Docter","año":2009,"x":2,"y":1,"genero":"animación","nota":"Matrimonio, fidelidad, duelo, aventura. Apertura devastadoramente bella sobre amor conyugal. Positiva."},
+{"titulo":"Ratatouille","titulo_original":"Ratatouille","director":"Brad Bird","año":2007,"x":1,"y":0,"genero":"animación","nota":"Vocación, excelencia, humildad. Cualquiera puede cocinar pero no cualquiera es gran chef — meritocracia sana. Limpia."},
+{"titulo":"WALL-E","titulo_original":"WALL-E","director":"Andrew Stanton","año":2008,"x":2,"y":1,"genero":"animación","nota":"Amor, cuidado de la creación, crítica del consumismo. Subtexto de Génesis. Ligero ecologismo pero no ideológico."},
+{"titulo":"Los Increíbles","titulo_original":"The Incredibles","director":"Brad Bird","año":2004,"x":2,"y":1,"genero":"animación","nota":"Familia, roles complementarios, excelencia como vocación. Violencia de acción moderada. Positiva."},
+{"titulo":"El gigante de hierro","titulo_original":"The Iron Giant","director":"Brad Bird","año":1999,"x":3,"y":1,"genero":"animación","nota":"Sacrificio cristológico explícito. Guerra Fría. Violencia moderada."},
+{"titulo":"Bambi","titulo_original":"Bambi","director":"David Hand","año":1942,"x":1,"y":0,"genero":"animación","nota":"Naturaleza, ciclo de vida, pérdida maternal. Puede impresionar a muy pequeños pero es formativo."},
+{"titulo":"Dumbo","titulo_original":"Dumbo","director":"Ben Sharpsteen","año":1941,"x":1,"y":1,"genero":"animación","nota":"Amor maternal, diferencia. Escena de embriaguez y contenido racial problemático (cuervos) — señalar en contexto histórico."},
+{"titulo":"Pinocho","titulo_original":"Pinocchio","director":"Ben Sharpsteen","año":1940,"x":3,"y":1,"genero":"animación","nota":"Moral explícita: honestidad, obediencia, conciencia. Escenas de Pleasure Island genuinamente aterradoras — formativas pero intensas."},
+{"titulo":"La bella y la bestia","titulo_original":"Beauty and the Beast","director":"Gary Trousdale","año":1991,"x":2,"y":1,"genero":"animación","nota":"Interior vs. exterior, sacrificio, amor transformador. Violencia leve. Positiva."},
+{"titulo":"La Sirenita","titulo_original":"The Little Mermaid","director":"Ron Clements","año":1989,"x":0,"y":1,"genero":"animación","nota":"Desobediencia tiene consecuencias pero también se recompensa. Mensaje ambiguo: abandona familia por romance adolescente."},
+{"titulo":"Aladdín","titulo_original":"Aladdin","director":"Ron Clements","año":1992,"x":1,"y":1,"genero":"animación","nota":"Honestidad, identidad. Mentira como motor de trama resuelto bien. Orientalismo de época."},
+{"titulo":"El Rey León","titulo_original":"The Lion King","director":"Roger Allers","año":1994,"x":2,"y":1,"genero":"animación","nota":"Responsabilidad, paternidad, destino. Ciclo de la vida con ecos de providencia. Muerte de Mufasa impactante."},
+{"titulo":"Mulán","titulo_original":"Mulan","director":"Tony Bancroft","año":1998,"x":1,"y":1,"genero":"animación","nota":"Coraje, sacrificio, honor familiar. Disfraz no es ideología sino recurso narrativo clásico. Batalla moderada."},
+{"titulo":"Blancanieves","titulo_original":"Snow White and the Seven Dwarfs","director":"David Hand","año":1937,"x":2,"y":1,"genero":"animación","nota":"Bien vs. mal, bondad, trabajo. Bruja puede asustar a muy pequeños. Primer largometraje animado."},
+{"titulo":"Cenicienta","titulo_original":"Cinderella","director":"Clyde Geronimi","año":1950,"x":2,"y":0,"genero":"animación","nota":"Bondad recompensada, esperanza, paciencia ante injusticia. Providencia implícita. Limpia."},
+{"titulo":"La bella durmiente","titulo_original":"Sleeping Beauty","director":"Clyde Geronimi","año":1959,"x":2,"y":1,"genero":"animación","nota":"Bien vs. mal nítido. Maléfica impactante. Estéticamente magnífica. Virtud clara."},
+{"titulo":"Encanto","titulo_original":"Encanto","director":"Jared Bush","año":2021,"x":0,"y":1,"genero":"animación","nota":"Familia, dones, presión de expectativas. Cosmología mágica sin explicación. Algo de individualismo moderno."},
+{"titulo":"Moana","titulo_original":"Moana","director":"Ron Clements","año":2016,"x":0,"y":2,"genero":"animación","nota":"Vocación e identidad. Mitología polinesia central — requiere contexto sobre religiones paganas."},
+{"titulo":"Frozen","titulo_original":"Frozen","director":"Chris Buck","año":2013,"x":1,"y":1,"genero":"animación","nota":"Amor fraternal, sacrificio. Let It Go como autoafirmación es ambiguo pero la película lo corrige."},
+{"titulo":"Cómo entrenar a tu dragón","titulo_original":"How to Train Your Dragon","director":"Dean DeBlois","año":2010,"x":2,"y":1,"genero":"animación","nota":"Amistad, comprensión del diferente, coraje. Vikingos. Violencia de acción moderada. Positiva."},
+{"titulo":"Shrek","titulo_original":"Shrek","director":"Andrew Adamson","año":2001,"x":-1,"y":2,"genero":"animación-comedia","nota":"Humor adulto, irreverencia hacia cuentos clásicos, flatulencia. Cinismo hacia la tradición narrativa es problemático."},
+{"titulo":"Kung Fu Panda","titulo_original":"Kung Fu Panda","director":"Mark Osborne","año":2008,"x":1,"y":1,"genero":"animación","nota":"Perseverancia, humildad. Filosofía oriental suave pero no agresiva. Humor limpio."},
+{"titulo":"Chicken Run","titulo_original":"Chicken Run","director":"Peter Lord","año":2000,"x":2,"y":0,"genero":"animación stop-motion","nota":"Libertad, ingenio, solidaridad. Humor británico limpio. Aardman."},
+{"titulo":"Fantasía","titulo_original":"Fantasia","director":"Ben Sharpsteen","año":1940,"x":0,"y":2,"genero":"animación-musical","nota":"Música clásica + animación. Noche en el Monte Pelado aterradora. Ave Maria final sacra. Conjunto neutro."},
+{"titulo":"Winnie the Pooh","titulo_original":"The Many Adventures of Winnie the Pooh","director":"Wolfgang Reitherman","año":1977,"x":1,"y":0,"genero":"animación","nota":"Suave, tierna, sin conflicto. Amistad pura. Ideal desde los 2 años."},
+{"titulo":"El libro de la selva","titulo_original":"The Jungle Book","director":"Wolfgang Reitherman","año":1967,"x":1,"y":0,"genero":"animación","nota":"Aventura, amistad, música memorable. Ley natural: el niño pertenece con los suyos. Limpia."},
+{"titulo":"Mr. Bean de vacaciones","titulo_original":"Mr. Bean's Holiday","director":"Steve Bendelack","año":2007,"x":1,"y":0,"genero":"comedia","nota":"Slapstick familiar en tradición Chaplin/Tati. Inocente."},
+{"titulo":"El milagro del hacedor","titulo_original":"The Miracle Maker","director":"Derek Hayes","año":2000,"x":9,"y":0,"genero":"animación","nota":"Mejor película animada bíblica. Vida de Cristo fiel y accesible. Ideal Semana Santa."},
+{"titulo":"E.T.","titulo_original":"E.T. the Extra-Terrestrial","director":"Steven Spielberg","año":1982,"x":2,"y":1,"genero":"ciencia ficción","nota":"Amistad, pérdida, inocencia. Imaginería cristológica (muerte y resurrección). Algún lenguaje menor."},
+{"titulo":"El mago (Court Jester)","titulo_original":"The Court Jester","director":"Melvin Frank","año":1956,"x":1,"y":0,"genero":"comedia","nota":"Humor verbal y físico brillante. Danny Kaye. Código Hays. Sin contenido problemático."},
+{"titulo":"Babe","titulo_original":"Babe","director":"Chris Noonan","año":1995,"x":2,"y":0,"genero":"drama-comedia","nota":"Bondad, identidad, vocación. Animales como microcosmos moral. Limpia."},
+{"titulo":"La historia del camello que llora","titulo_original":"The Story of the Weeping Camel","director":"Byambasuren Davaa","año":2003,"x":1,"y":1,"genero":"documental","nota":"Nómadas de Mongolia. Vida familiar, tradición, naturaleza. Contemplativa."},
+{"titulo":"Paddington 2","titulo_original":"Paddington 2","director":"Paul King","año":2017,"x":3,"y":0,"genero":"comedia-aventura","nota":"Bondad transforma. Paddington como figura crística ingenua: convierte a todos con caridad. Limpia y cálida."},
+{"titulo":"La canción de Bernadette","titulo_original":"The Song of Bernadette","director":"Henry King","año":1943,"x":9,"y":1,"genero":"drama biográfico","nota":"Aparición de Lourdes. Hagiografía sólida. Fe, obediencia, sufrimiento. Accesible pero ritmo clásico."},
+{"titulo":"¡Qué bello es vivir!","titulo_original":"It's a Wonderful Life","director":"Frank Capra","año":1946,"x":6,"y":1,"genero":"drama","nota":"Providencia, valor de cada vida, comunidad. Capra católico. Suicidio frustrado requiere mínimo contexto."},
+{"titulo":"Un hombre para la eternidad","titulo_original":"A Man for All Seasons","director":"Fred Zinnemann","año":1966,"x":9,"y":2,"genero":"drama biográfico","nota":"Tomás Moro. Martirio por conciencia. Católicamente impecable. Complejidad política menor. [Calibración]"},
+{"titulo":"La Misión","titulo_original":"The Mission","director":"Roland Joffé","año":1986,"x":7,"y":4,"genero":"drama histórico","nota":"Reducciones jesuitas. Fe, sacrificio, violencia colonial. Final ambiguo. Morricone sublime. [Calibración]"},
+{"titulo":"El Señor de los Anillos","titulo_original":"The Lord of the Rings","director":"Peter Jackson","año":2003,"x":5,"y":2,"genero":"fantasía épica","nota":"Subcorriente sacramental tolkieniana. Sacrificio, providencia, misericordia. Violencia de batalla. [Calibración]"},
+{"titulo":"Carros de fuego","titulo_original":"Chariots of Fire","director":"Hugh Hudson","año":1981,"x":4,"y":1,"genero":"drama biográfico","nota":"Protestante seria. Fe, vocación, integridad. Contenido limpio. Consonante con ley natural. [Calibración]"},
+{"titulo":"La Pasión de Cristo","titulo_original":"The Passion of the Christ","director":"Mel Gibson","año":2004,"x":9,"y":7,"genero":"drama bíblico","nota":"Doctrinalmente fiel. Violencia gráfica extrema. No apta sin madurez. Arameo/latín. [Calibración]"},
+{"titulo":"Diario de un cura rural","titulo_original":"Journal d'un curé de campagne","director":"Robert Bresson","año":1951,"x":9,"y":5,"genero":"drama","nota":"Bernanos filmado por Bresson. Profundidad espiritual extrema. Austero. Exige madurez contemplativa. [Calibración]"},
+{"titulo":"Silence","titulo_original":"Silence","director":"Martin Scorsese","año":2016,"x":6,"y":7,"genero":"drama histórico","nota":"Apostasía, martirio, tortura en Japón. Ambigüedad final sobre pisotear el fumie requiere guía seria. [Calibración]"},
+{"titulo":"De dioses y hombres","titulo_original":"Des hommes et des dieux","director":"Xavier Beauvois","año":2010,"x":8,"y":4,"genero":"drama","nota":"Monjes mártires de Tibhirine. Vida comunitaria, Última Cena cinematográfica. Ritmo contemplativo. [Calibración]"},
+{"titulo":"Calvary","titulo_original":"Calvary","director":"John Michael McDonagh","año":2014,"x":5,"y":6,"genero":"drama","nota":"Sacerdote bueno en Irlanda corrupta. Lenguaje fuerte, suicidio, abuso clerical. Valor real pero crudo. [Calibración]"},
+{"titulo":"Casablanca","titulo_original":"Casablanca","director":"Michael Curtiz","año":1942,"x":2,"y":1,"genero":"drama-romance","nota":"Sacrificio, honor, deber sobre deseo. Código Hays. Moral clara sin ser religiosa. [Calibración]"},
+{"titulo":"Blade Runner","titulo_original":"Blade Runner","director":"Ridley Scott","año":1982,"x":1,"y":4,"genero":"ciencia ficción","nota":"¿Qué es ser humano? Subtexto pro-vida. Atmósfera oscura, violencia. Ambigüedad valiosa con guía. [Calibración]"},
+{"titulo":"2001: Odisea del espacio","titulo_original":"2001: A Space Odyssey","director":"Stanley Kubrick","año":1968,"x":-2,"y":4,"genero":"ciencia ficción","nota":"Ambigüedad cósmica. Humanismo tecnológico. Cosmovisión implícitamente no teísta. [Calibración]"},
+{"titulo":"La naranja mecánica","titulo_original":"A Clockwork Orange","director":"Stanley Kubrick","año":1971,"x":-4,"y":8,"genero":"drama-ciencia ficción","nota":"Violencia estetizada, contenido sexual. Crítica del conductismo pero método repulsivo. Solo adultos formados. [Calibración]"},
+{"titulo":"Pulp Fiction","titulo_original":"Pulp Fiction","director":"Quentin Tarantino","año":1994,"x":-3,"y":7,"genero":"drama-crimen","nota":"Violencia gráfica, lenguaje extremo, drogas. Arco de redención de Jules pero inmerso en nihilismo estilizado. [Calibración]"},
+{"titulo":"El séptimo sello","titulo_original":"Det sjunde inseglet","director":"Ingmar Bergman","año":1957,"x":-1,"y":5,"genero":"drama","nota":"Duda de fe seria, no ateísmo militante. Bergman busca a Dios sin encontrarlo. Valiosa con guía. [Calibración]"},
+{"titulo":"El gran Lebowski","titulo_original":"The Big Lebowski","director":"Joel Coen","año":1998,"x":-1,"y":3,"genero":"comedia","nota":"Nihilismo suave irónico. Lenguaje fuerte, drogas, escena sexual. Mundo sin trascendencia. [Calibración]"},
+{"titulo":"La última tentación de Cristo","titulo_original":"The Last Temptation of Christ","director":"Martin Scorsese","año":1988,"x":-7,"y":8,"genero":"drama","nota":"Cristología heterodoxa grave. Contenido sexual sobre Cristo. Requiere formación teológica seria. [Calibración]"},
+{"titulo":"Anticristo","titulo_original":"Antichrist","director":"Lars von Trier","año":2009,"x":-8,"y":9,"genero":"horror-drama","nota":"Desesperanza radical, violencia sexual gráfica, misoginia metafísica. Solo con guía muy seria. [Calibración]"},
+{"titulo":"Saló","titulo_original":"Salò o le 120 giornate di Sodoma","director":"Pier Paolo Pasolini","año":1975,"x":-9,"y":10,"genero":"drama","nota":"Depravación sistemática, blasfemia, tortura. Ancla extrema negativa. Difícilmente justificable. [Calibración]"},
+{"titulo":"Nostalgia de la luz","titulo_original":"Nostalgia de la luz","director":"Patricio Guzmán","año":2010,"x":0,"y":3,"genero":"documental","nota":"Astronomía, memoria, desaparecidos en Atacama. Contemplativo. Ni pro ni anti-fe. [Calibración]"}
+];
+
+// ---- DECADE COLORS ----
+const DECADE_COLORS = {
+  1930: '#8b6914',  // burnt gold
+  1940: '#a0522d',  // sienna
+  1950: '#b8860b',  // dark goldenrod
+  1960: '#6b8e23',  // olive drab
+  1970: '#2e8b57',  // sea green
+  1980: '#4682b4',  // steel blue
+  1990: '#6a5acd',  // slate blue
+  2000: '#8b4572',  // muted rose
+  2010: '#cd5c5c',  // indian red
+  2020: '#c44569',  // warm crimson
+};
+
+function getDecade(year) { return Math.floor(year / 10) * 10; }
+function getColor(year) { return DECADE_COLORS[getDecade(year)] || '#666'; }
+
+// ---- CHART SETUP ----
+const svg = document.getElementById('chart');
+const tooltip = document.getElementById('tooltip');
+const container = svg.parentElement;
+
+const margin = { top: 30, right: 30, bottom: 55, left: 65 };
+let W, H, plotW, plotH;
+
+function resize() {
+  const rect = container.getBoundingClientRect();
+  W = rect.width;
+  H = rect.height;
+  plotW = W - margin.left - margin.right;
+  plotH = H - margin.top - margin.bottom;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+}
+resize();
+
+function scaleX(v) { return margin.left + ((v + 10) / 20) * plotW; }
+function scaleY(v) { return margin.top + (1 - v / 10) * plotH; }
+
+function drawChart() {
+  resize();
+  let html = '';
+
+  // Background zones (subtle)
+  // Positive-safe quadrant
+  html += `<rect x="${scaleX(0)}" y="${scaleY(10)}" width="${scaleX(10)-scaleX(0)}" height="${scaleY(0)-scaleY(10)}" fill="rgba(34,139,34,0.03)" />`;
+  // Negative-dangerous quadrant
+  html += `<rect x="${scaleX(-10)}" y="${scaleY(10)}" width="${scaleX(0)-scaleX(-10)}" height="${scaleY(5)-scaleY(10)}" fill="rgba(139,37,0,0.03)" />`;
+
+  // Grid lines
+  for (let x = -10; x <= 10; x++) {
+    const cls = x === 0 ? 'grid-line-major' : 'grid-line';
+    html += `<line x1="${scaleX(x)}" y1="${scaleY(0)}" x2="${scaleX(x)}" y2="${scaleY(10)}" class="${cls}" />`;
+    if (x % 2 === 0) {
+      html += `<text x="${scaleX(x)}" y="${scaleY(0) + 18}" class="axis-label" text-anchor="middle">${x > 0 ? '+' + x : x}</text>`;
+    }
+  }
+  for (let y = 0; y <= 10; y++) {
+    const cls = y === 0 ? 'grid-line-major' : 'grid-line';
+    html += `<line x1="${scaleX(-10)}" y1="${scaleY(y)}" x2="${scaleX(10)}" y2="${scaleY(y)}" class="${cls}" />`;
+    html += `<text x="${scaleX(-10) - 10}" y="${scaleY(y) + 4}" class="axis-label" text-anchor="end">${y}</text>`;
+  }
+
+  // Axis titles
+  html += `<text x="${scaleX(0)}" y="${H - 6}" class="axis-title" text-anchor="middle">← Contrario a la fe · Ortodoxia doctrinal · Católico impecable →</text>`;
+  html += `<text transform="translate(14, ${scaleY(5)}) rotate(-90)" class="axis-title" text-anchor="middle">Necesidad de acompañamiento →</text>`;
+
+  // Zone labels
+  html += `<text x="${scaleX(7)}" y="${scaleY(0.5)}" class="zone-label" text-anchor="middle">Católico accesible</text>`;
+  html += `<text x="${scaleX(7)}" y="${scaleY(8)}" class="zone-label" text-anchor="middle">Católico exigente</text>`;
+  html += `<text x="${scaleX(-6)}" y="${scaleY(8)}" class="zone-label" text-anchor="middle">Problemático / peligroso</text>`;
+  html += `<text x="${scaleX(-6)}" y="${scaleY(0.5)}" class="zone-label" text-anchor="middle">Secular inofensivo</text>`;
+
+  // Dots
+  DATA.forEach((d, i) => {
+    const cx = scaleX(d.x);
+    const cy = scaleY(d.y);
+    const color = getColor(d.año);
+    html += `<circle class="dot" data-idx="${i}" cx="${cx}" cy="${cy}" r="5" fill="${color}" stroke="${color}" />`;
+  });
+
+  svg.innerHTML = html;
+
+  // Attach events to dots
+  svg.querySelectorAll('circle.dot').forEach(el => {
+    el.addEventListener('mouseenter', e => showTooltip(e, +el.dataset.idx));
+    el.addEventListener('mouseleave', hideTooltip);
+    el.addEventListener('click', () => scrollToRow(+el.dataset.idx));
+  });
+}
+
+drawChart();
+window.addEventListener('resize', () => { drawChart(); applySearch(); });
+
+// ---- TOOLTIP ----
+function showTooltip(e, idx) {
+  const d = DATA[idx];
+  tooltip.innerHTML = `
+    <div class="tt-title">${d.titulo}</div>
+    <div class="tt-meta">${d.director} · ${d.año}</div>
+    <div class="tt-coords">X: ${d.x > 0 ? '+' : ''}${d.x} · Y: ${d.y}</div>
+    <div class="tt-genre">${d.genero}</div>
+    <div class="tt-note">${d.nota}</div>
+  `;
+  tooltip.classList.add('visible');
+
+  const rect = container.getBoundingClientRect();
+  const dot = e.target.getBoundingClientRect();
+  let left = dot.left - rect.left + 12;
+  let top = dot.top - rect.top - 10;
+
+  if (left + 350 > rect.width) left = dot.left - rect.left - 360;
+  if (top + 200 > rect.height) top = rect.height - 210;
+  if (top < 0) top = 10;
+
+  tooltip.style.left = left + 'px';
+  tooltip.style.top = top + 'px';
+}
+
+function hideTooltip() {
+  tooltip.classList.remove('visible');
+}
+
+// ---- TABLE ----
+const tbody = document.getElementById('tableBody');
+
+function renderTable(order) {
+  const indices = order || DATA.map((_, i) => i);
+  tbody.innerHTML = indices.map(i => {
+    const d = DATA[i];
+    const color = getColor(d.año);
+    return `<tr data-idx="${i}">
+      <td><span class="decade-badge" style="background:${color}"></span>${d.titulo}</td>
+      <td>${d.director}</td>
+      <td class="num">${d.año}</td>
+      <td class="num">${d.x > 0 ? '+' : ''}${d.x}</td>
+      <td class="num">${d.y}</td>
+      <td>${d.genero}</td>
+      <td class="nota-cell">${d.nota}</td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('tr').forEach(tr => {
+    tr.addEventListener('mouseenter', () => highlightDot(+tr.dataset.idx, true));
+    tr.addEventListener('mouseleave', () => highlightDot(+tr.dataset.idx, false));
+  });
+}
+
+function highlightDot(idx, on) {
+  const dot = svg.querySelector(`circle.dot[data-idx="${idx}"]`);
+  if (dot) {
+    if (on) { dot.setAttribute('r', '7'); dot.style.strokeWidth = '2.5'; dot.style.filter = 'drop-shadow(0 0 6px rgba(184,150,12,0.5))'; }
+    else { dot.setAttribute('r', '5'); dot.style.strokeWidth = '1.5'; dot.style.filter = ''; }
+  }
+}
+
+function scrollToRow(idx) {
+  const row = tbody.querySelector(`tr[data-idx="${idx}"]`);
+  if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+renderTable();
+
+// ---- SORTING ----
+let sortCol = null, sortDir = 'asc';
+document.querySelectorAll('thead th').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    else { sortCol = col; sortDir = 'asc'; }
+
+    document.querySelectorAll('thead th').forEach(t => t.classList.remove('sorted-asc', 'sorted-desc'));
+    th.classList.add(sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+
+    const indices = DATA.map((_, i) => i);
+    indices.sort((a, b) => {
+      let va = DATA[a][col === 'x_ortodoxia' ? 'x' : col === 'y_acompanamiento' ? 'y' : col];
+      let vb = DATA[b][col === 'x_ortodoxia' ? 'x' : col === 'y_acompanamiento' ? 'y' : col];
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    renderTable(indices);
+    applySearch();
+  });
+});
+
+// ---- SEARCH ----
+const searchInput = document.getElementById('searchInput');
+const searchCount = document.getElementById('searchCount');
+
+function applySearch() {
+  const q = searchInput.value.trim().toLowerCase();
+  const dots = svg.querySelectorAll('circle.dot');
+  const rows = tbody.querySelectorAll('tr');
+
+  if (!q) {
+    dots.forEach(d => { d.classList.remove('dimmed', 'highlighted'); });
+    rows.forEach(r => { r.classList.remove('dimmed', 'highlighted'); });
+    searchCount.textContent = '';
+    return;
+  }
+
+  let matchCount = 0;
+  const matchedIndices = new Set();
+
+  DATA.forEach((d, i) => {
+    const haystack = [d.titulo, d.titulo_original, d.director, d.genero, d.nota, '' + d.año].join(' ').toLowerCase();
+    if (haystack.includes(q)) {
+      matchedIndices.add(i);
+      matchCount++;
+    }
+  });
+
+  dots.forEach(d => {
+    const idx = +d.dataset.idx;
+    if (matchedIndices.has(idx)) {
+      d.classList.remove('dimmed');
+      d.classList.add('highlighted');
+    } else {
+      d.classList.add('dimmed');
+      d.classList.remove('highlighted');
+    }
+  });
+
+  rows.forEach(r => {
+    const idx = +r.dataset.idx;
+    if (matchedIndices.has(idx)) {
+      r.classList.remove('dimmed');
+      r.classList.add('highlighted');
+    } else {
+      r.classList.add('dimmed');
+      r.classList.remove('highlighted');
+    }
+  });
+
+  searchCount.textContent = matchCount === 0 ? 'Sin resultados' : `${matchCount} película${matchCount !== 1 ? 's' : ''} encontrada${matchCount !== 1 ? 's' : ''}`;
+}
+
+searchInput.addEventListener('input', applySearch);
+
+// ---- STATS ----
+const statsBar = document.getElementById('statsBar');
+const decades = [...new Set(DATA.map(d => getDecade(d.año)))].sort();
+statsBar.innerHTML = `
+  <span><strong>${DATA.length}</strong> películas</span>
+  <span><strong>${decades[0]}s–${decades[decades.length-1]}s</strong></span>
+  <span>X: <strong>${Math.min(...DATA.map(d=>d.x))}</strong> a <strong>+${Math.max(...DATA.map(d=>d.x))}</strong></span>
+  <span>Y: <strong>${Math.min(...DATA.map(d=>d.y))}</strong> a <strong>${Math.max(...DATA.map(d=>d.y))}</strong></span>
+`;
+
+// ---- LEGEND ----
+const legend = document.getElementById('legend');
+legend.innerHTML = decades.map(d => `
+  <div class="legend-item">
+    <span class="legend-dot" style="background:${DECADE_COLORS[d]}"></span>
+    <span>${d}s</span>
+  </div>
+`).join('');
+</script>
+</body>
+</html>
